@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import StringIO
 import json
 import logging
@@ -6,8 +7,8 @@ import urllib
 import urllib2
 
 # for sending images
-#import Image
-import multipart
+# import Image
+# import multipart
 
 # standard app engine imports
 from google.appengine.api import urlfetch
@@ -19,6 +20,10 @@ from datetime import datetime, timedelta
 import pytz
 import time
 
+#for fixing emoji
+import sys
+reload(sys)  
+sys.setdefaultencoding('utf8')
 
 TOKEN = '351697767:AAFV5Y2RewXLLXGbcGohE7reo3O1-lb0LpU'
 
@@ -106,6 +111,7 @@ class WebhookHandler(webapp2.RequestHandler):
         fr = message.get('from')
         chat = message['chat']
         chat_id = chat['id']
+        chat_type = chat['type']
 
         if not text:
             logging.info('no text')
@@ -132,22 +138,22 @@ class WebhookHandler(webapp2.RequestHandler):
 
             logging.info('send response:')
             logging.info(resp)
-        if text.startswith('/'):
-            if text == '/start':
-                reply('Bot enabled')
-                setEnabled(chat_id, True)
-            elif text == '/stop':
-                reply('Bot disabled')
-                setEnabled(chat_id, False)
-            elif text == '/image':
-                img = Image.new('RGB', (512, 512))
-                base = random.randint(0, 16777216)
-                pixels = [base+i*j for i in range(512) for j in range(512)]  # generate sample image
-                img.putdata(pixels)
-                output = StringIO.StringIO()
-                img.save(output, 'JPEG')
-                reply(img=output.getvalue())
-            elif text =='/nextround':
+
+        def reply_group(msg=None):
+            if msg:
+                resp = urllib2.urlopen(BASE_URL + 'sendMessage', urllib.urlencode({
+                    'chat_id': '-1001139451744',
+                    'text': msg.encode('utf-8'),
+                    'disable_web_page_preview': 'true',
+                })).read()
+            else:
+                logging.error('no msg or img specified')
+                resp = None
+
+            logging.info('send response:')
+            logging.info(resp)
+        if chat_type=='supergroup':
+            if text =='/nextround':
                 italy_time =pytz.timezone('Europe/Rome')
                 curr_time = datetime.now(italy_time)
                 date_today = (datetime.today() + timedelta(1)).strftime('%Y%m%d')
@@ -168,36 +174,84 @@ class WebhookHandler(webapp2.RequestHandler):
 
                 if(hour_now>=21):
                     hour_next = 15+23-hour_now
-                    min_next = 60-min_now
-                    sec_next = 60-sec_now
-                    next_timer = hour_next+':'+min_next+':'+sec_next
                     next_date = "15:00:00"
                 elif(hour_now<15):
                     hour_next = 14-hour_now
-                    min_next = 60-min_now
-                    sec_next = 60-sec_now
-                    next_timer = hour_next+':'+min_next+':'+sec_next
                     next_date = "15:00:00"
                 elif(hour_now>=15 and hour_now<18):
                     hour_next = 17-hour_now
-                    min_next = 60-min_now
-                    sec_next = 60-sec_now
-                    next_timer = hour_next+':'+min_next+':'+sec_next
                     next_date = "18:00:00"
                 else:
                     hour_next = 20-hour_now
-                    if(hour_next)<10:
-                        hour_next='0'+str(hour_next) 
-                    min_next = 60-min_now
-                    if(min_next)<10:
-                        min_next='0'+str(min_next)
-                    sec_next = 60-sec_now
-                    if(sec_next)<10:
-                        sec_next='0'+str(sec_next)
-                    next_timer = str(hour_next)+':'+str(min_next)+':'+str(sec_next)
                     next_date = "21:00:00"
-                reply('Group Time is: '+time_now+'\n Next Round Will Start in '+next_timer+'\n at: '+next_date+' (CET)')
-        
+                
+                min_next = 60-min_now
+                sec_next = 60-sec_now
+                
+                if(hour_next)<10:
+                    hour_next='0'+str(hour_next) 
+                min_next = 60-min_now
+                if(min_next)<10:
+                    min_next='0'+str(min_next)
+                sec_next = 60-sec_now
+                if(sec_next)<10:
+                    sec_next='0'+str(sec_next)
+                
+                next_timer = str(hour_next)+':'+str(min_next)+':'+str(sec_next)
+                reply_group('Group Time is: '+time_now+'\n Next Round Will Start in '+next_timer+'\n at: '+next_date+' (CET)')  
+            
+            elif text.startswith('@'):
+                italy_time =pytz.timezone('Europe/Rome')
+                curr_time = datetime.now(italy_time)
+                curr_hour = int(curr_time.strftime('%H'))
+                curr_min = int(curr_time.strftime('%M'))
+                if(curr_hour==14 or curr_hour==17 or curr_hour==20):
+                    if(curr_min>=40):
+                        ins_id = text.partition(' ')
+                        insta_id = ins_id[0]
+                        reply('Username '+insta_id+' Received')
+                    else:
+                        reply('No active round')
+                else:
+                    reply('No active round')
+            elif text.startswith('D'):
+                italy_time =pytz.timezone('Europe/Rome')
+                curr_time = datetime.now(italy_time)
+                curr_hour = int(curr_time.strftime('%H'))
+                curr_min = int(curr_time.strftime('%M'))
+                
+                ins_id = text.partition(' ')
+                insta_id = ins_id[0]
+
+                if(curr_hour==15 or curr_hour==18 or curr_hour==21):    
+                    reply('Done '+insta_id)
+                elif(curr_hour==16 or curr_hour==19 or curr_hour==22):
+                    if(curr_time<=25):
+                        reply('Done '+insta_id)
+                else:
+                    reply('No active round')
+
+            else:
+                if getEnabled(chat_id):
+                    reply("Please Don't Speak Here! Join Our Discussion Chat'")
+                else:
+                    logging.info('not enabled for chat_id {}'.format(chat_id))
+
+        elif text.startswith('/'):
+            if text == '/start':
+                reply('Bot enabled')
+                setEnabled(chat_id, True)
+            elif text == '/stop':
+                reply('Bot disabled')
+                setEnabled(chat_id, False)
+            # elif text == '/image':
+            #     img = Image.new('RGB', (512, 512))
+            #     base = random.randint(0, 16777216)
+            #     pixels = [base+i*j for i in range(512) for j in range(512)]  # generate sample image
+            #     img.putdata(pixels)
+            #     output = StringIO.StringIO()
+            #     img.save(output, 'JPEG')
+            #     reply(img=output.getvalue())
             else:
                 reply('What command?')
 
@@ -209,15 +263,34 @@ class WebhookHandler(webapp2.RequestHandler):
             reply('look at the corner of your screen!')
         else:
             if getEnabled(chat_id):
-                reply('I got your message! (but I do not know how to answer)')
+                reply("I got your message.")
             else:
                 logging.info('not enabled for chat_id {}'.format(chat_id))
 
 
+class NotifyHandler(webapp2.RequestHandler):
+    def get(self): 
+        msg = '❤ LIKE RECENT ROUND ❤\n D R O P \n Format : You can now drop like that \n@username'
+  
+        resp = urllib2.urlopen(BASE_URL + 'sendMessage', urllib.urlencode({
+            'chat_id': '-1001139451744',
+            'text': msg.decode().encode('UTF-8'),
+        })).read()
+        self.response.write("ok")
+class NewRoundHandler(webapp2.RequestHandler):
+    def get(self): 
+        msg = '😊 ROUND IS NOW CLOSED 😊 \n 90 MINUTES! \n LEECHING = BAN \n PM admins for any issues'
+        resp = urllib2.urlopen(BASE_URL + 'sendMessage', urllib.urlencode({
+            'chat_id': '-1001139451744',
+            'text': msg.decode().encode('UTF-8'),
+        })).read()  
+        self.response.write("ok")
 app = webapp2.WSGIApplication([
     ('/', HelloWorld),
     ('/me', MeHandler),
     ('/updates', GetUpdatesHandler),
     ('/set_webhook', SetWebhookHandler),
     ('/webhook', WebhookHandler),
+    ('/new_round', NewRoundHandler),
+    ('/notify', NotifyHandler)
 ], debug=True)

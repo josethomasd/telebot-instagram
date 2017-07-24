@@ -1,9 +1,9 @@
 cron:
 - description: "send start message"
-  url: /start
+  url: /new_round
   schedule: every 3 hours from 15:00 to 21:00
   timezone : Europe/London
 - description: "send notification"
   url: /notify
-  schedule: every 3 hours from 14:30 to 20:30
+  schedule: every 3 hours from 14:40 to 20:40
   timezone : Europe/London
