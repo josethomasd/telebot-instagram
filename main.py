@@ -38,9 +38,10 @@ class EnableStatus(ndb.Model):
 
 
 class Users(ndb.Model):
-    user_id = ndb.StringProperty()
-    name = ndb.StringProperty()
     user_name = ndb.StringProperty()
+    user_id = ndb.StringProperty()
+    insta_id = ndb.StringProperty()
+
 
 # ================================
 
@@ -55,15 +56,18 @@ def getEnabled(chat_id):
         return es.enabled
     return False
 
-def addUsers(chat_id, yes):
-    es = addUsers.get_or_insert(str(chat_id))
-    es.enabled = yes
-    es.put()
+def addUsers(user_id, user_name, insta_id):
+    sandy = Users()
+    sandy.username = user_name
+    sandy.user_id = user_id
+    sandy.ins_id = ins_id
+    sandy.put()
+    return sandy
 
-def getEnabled(chat_id):
-    es = EnableStatus.get_by_id(str(chat_id))
-    if es:
-        return es.enabled
+def getUsers(chat_id):
+    sandy = Users.get_by_id(str(chat_id))
+    if sandy:
+        return sandy.enabled
     return False
 
 # ================================
@@ -110,6 +114,9 @@ class WebhookHandler(webapp2.RequestHandler):
         text = message.get('text')
         fr = message.get('from')
         chat = message['chat']
+        sender = message['from']
+        sender_id = sender['id']
+        sender_name = sender['username']
         chat_id = chat['id']
         chat_type = chat['type']
 
@@ -209,7 +216,9 @@ class WebhookHandler(webapp2.RequestHandler):
                     if(curr_min>=40):
                         ins_id = text.partition(' ')
                         insta_id = ins_id[0]
+                        addUsers(user_id, user_name, insta_id)
                         reply('Username '+insta_id+' Received')
+
                     else:
                         reply('No active round')
                 else:
@@ -225,6 +234,7 @@ class WebhookHandler(webapp2.RequestHandler):
 
                 if(curr_hour==15 or curr_hour==18 or curr_hour==21):    
                     reply('Done '+insta_id)
+
                 elif(curr_hour==16 or curr_hour==19 or curr_hour==22):
                     if(curr_time<=25):
                         reply('Done '+insta_id)
