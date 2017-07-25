@@ -6,6 +6,13 @@ import random
 import urllib
 import urllib2
 
+#db
+import web
+import string
+
+from sqlalchemy.orm import scoped_session, sessionmaker
+from models import *
+
 # for sending images
 # import Image
 # import multipart
@@ -29,6 +36,21 @@ TOKEN = '351697767:AAFV5Y2RewXLLXGbcGohE7reo3O1-lb0LpU'
 
 BASE_URL = 'https://api.telegram.org/bot' + TOKEN + '/'
 
+def load_sqla(handler):
+    web.ctx.orm = scoped_session(sessionmaker(bind=engine))
+    try:
+        return handler()
+    except web.HTTPError:
+       web.ctx.orm.commit()
+       raise
+    except:
+        web.ctx.orm.rollback()
+        raise
+    finally:
+        web.ctx.orm.commit()
+        # If the above alone doesn't work, uncomment 
+        # the following line:
+        #web.ctx.orm.expunge_all() 
 
 # ================================
 
@@ -67,12 +89,17 @@ def addUsers(user_id, user_name, insta_id):
 def getUsers(chat_id):
     sandy = Users.get_by_id(str(chat_id))
     if sandy:
-        return sandy.enabled
+        return sandy
     return False
+
 
 # ================================
 class HelloWorld(webapp2.RequestHandler):
     def get(self):
+         u = User(insta_id='@jose'
+                ,username='josethomasd'
+                ,user_id='1234')
+        web.ctx.orm.add(u)
         self.response.write('Hello World')
 
 
@@ -304,3 +331,4 @@ app = webapp2.WSGIApplication([
     ('/new_round', NewRoundHandler),
     ('/notify', NotifyHandler)
 ], debug=True)
+app.add_processor(load_sqla)
